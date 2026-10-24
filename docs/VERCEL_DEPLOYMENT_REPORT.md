@@ -1,38 +1,36 @@
-# TaskFlow: Vercel Deployment Readiness Report
+# TaskFlow deployment verification
 
-Review date: 2026-10-22
+Verified on 24 October 2026.
 
-## What the project contains
+## Live application
 
-TaskFlow is a React/TypeScript/Vite client and a FastAPI service. The API relies on PostgreSQL and Redis. Celery worker and beat processes handle task reminders. The repository also includes a Docker Compose stack suitable for local development and a separate single-VM deployment example.
+- App: https://taskflow-virid-three.vercel.app
+- API docs: https://taskflow-virid-three.vercel.app/docs
+- Database readiness: https://taskflow-virid-three.vercel.app/health/ready
+- Source: https://github.com/PrathapKumarKatta/taskflow
+- Vercel project: `taskflow`, scope `prathapkumarkattas-projects`
 
-## Vercel deployment boundary
+The repository root contains `vercel.json`. Vercel Services (currently beta) builds the Vite frontend in `frontend` and the FastAPI service at the repository root together. API, health, and documentation paths route to FastAPI; other requests route to the SPA. Production uses same-origin API requests, so no `VITE_API_BASE_URL` override is required. Python is pinned to 3.12; Node is 24.
 
-The frontend is configured for Vercel as a Vite single-page app. Vercel builds `frontend` with `npm run build`, publishes `dist`, and routes client-side paths back to `index.html`. Set the Vercel project Root Directory to `BACKEND/frontend` when importing the DSA_DOJO repository.
+GitHub auto-deployment is connected to `main`. Keep credentials in Vercel environment settings. The application reuses the configured production PostgreSQL database. No schema migration was required for this release. Readiness compares the installed Alembic revisions against the bundled migration heads and returns 503 if they differ.
 
-Vercel deployment of this frontend does not host the complete TaskFlow service. Deploy the FastAPI API, PostgreSQL, Redis, one Celery worker, and one Celery beat process on an always-running container or app platform first. The provided `docs/deployment` example documents one Linux VM topology. Add the deployed API origin to the Vercel project's `VITE_API_BASE_URL` environment variable, with no trailing slash, and set the API's `CORS_ORIGINS` to the exact Vercel production origin and any intended preview origins. Rebuild after setting the variable.
+## Verification evidence
 
-## Vercel project settings
+- 71 backend tests passed against dedicated local PostgreSQL.
+- Frontend regression tests passed for draft-preserving conflict recovery and bounded server pagination/filtering.
+- Python lint/format checks, TypeScript checks, and the production frontend build passed.
+- Frontend dependency audit: zero reported vulnerabilities.
+- GitHub CI passed, including frontend/backend Docker builds.
+- Live HTTP checks passed for registration/login, task creation/update, stale version rejection (409), outsider access denial (404), comments, search/pagination, and project statistics.
+- The temporary HTTP verification workspace was deleted after testing.
+- Browser verification passed for demo setup, the connected task board, and persisting a task edit to version 2.
 
-- Root Directory: `BACKEND/frontend`
-- Framework: Vite
-- Install Command: `npm install` (or `npm ci` when a package lock is committed)
-- Build Command: `npm run build`
-- Output Directory: `dist`
-- Environment: `VITE_API_BASE_URL=https://YOUR_TASKFLOW_API_HOST`
+## Reminder delivery boundary
 
-The browser calls `/api/v1` and `/health/ready` on that API origin. The API docs link points to `/docs` on the same origin. Local Vite development keeps using its proxy when the environment variable is empty.
+The Vercel release hosts the web app and API. It does not provision Redis, an always-running Celery worker/beat scheduler, or an SMTP account. Production currently uses the console email backend. To send real reminders, deploy the existing worker and exactly one beat instance against the same database with a reachable Redis broker and configure SMTP through the worker host's secret manager. The Docker and single-VM examples remain available in `docs/deployment`.
 
-## Release checklist
+Reminder code now checks active workspace membership, serializes delivery with workspace changes, and reactivates eligible cancelled records. Previously sent records remain deduplicated.
 
-1. Deploy the API, PostgreSQL, Redis, worker, and beat using the deployment guide. Configure real secrets and TLS; do not reuse local `.env` values.
-2. Set production `CORS_ORIGINS` to the exact frontend origin. Do not use `*` with credentials.
-3. Create the Vercel project with the settings above and set `VITE_API_BASE_URL` for Production and Preview environments as appropriate.
-4. Deploy and verify registration, login, workspace creation, task updates, comments, activity, and the `/health/ready` indicator in a browser.
-5. Verify that the worker and beat are running and that a due-task reminder is processed. Verify database backups and restore separately.
+## Repository replacement
 
-## Current status and limits
-
-The TaskFlow frontend is deployed at [https://taskflow-app-tau-six.vercel.app](https://taskflow-app-tau-six.vercel.app) and returns HTTP 200. Its Vercel project is `taskflow-app`, with root directory `BACKEND/frontend`, Vite build settings, and public access enabled. The build currently has no `VITE_API_BASE_URL`, so login and all API-backed features need a separately hosted TaskFlow API. Set that URL in Vercel and configure production `CORS_ORIGINS` before using the app. The API's console email adapter does not send real email.
-
-Vercel Git auto-deployment is not connected. The CLI connection attempt was rejected because the Git integration is not available to this project; connect the DSA_DOJO repository from Vercel's project settings to enable deployments on future pushes. The deployment was published from the pushed `codex/vercel-deployment-reports` branch.
+The former `PrathapKumarKatta/TaskFlow` repository was backed up locally and renamed to `taskflow-legacy-20261024` while the replacement was verified. GitHub rejected deletion with HTTP 403 (`Must have admin rights to Repository`), so it is archived pending deletion by an account with repository-delete permission. `DSA_DOJO` was preserved.

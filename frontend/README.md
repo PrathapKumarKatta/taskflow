@@ -4,7 +4,7 @@ React + TypeScript + Vite frontend for the FastAPI backend in the parent directo
 
 ## Run the whole application
 
-From `BACKEND`:
+From the repository root:
 
 ```powershell
 uv run python scripts/init_env.py
@@ -15,7 +15,7 @@ Open [TaskFlow](http://127.0.0.1:3000). Create an account or select **Explore a 
 
 ## Develop locally
 
-Keep the API running at `http://127.0.0.1:8000`, then from `BACKEND/frontend`:
+Keep the API running at `http://127.0.0.1:8000`, then from `frontend`:
 
 ```powershell
 npm ci --no-audit --no-fund
@@ -38,14 +38,16 @@ Build runs TypeScript with strict and unused-symbol checks, then writes producti
 - Browse tasks in a four-column board on desktop, two columns on narrow screens, or a paginated table. Search literal title/description text, filter by priority/status/your assignments, and sort by date or priority.
 - Create tasks with a description, status, priority, assignee and timezone-aware due date. Datetime input uses your local timezone and sends an ISO timestamp to the API.
 - Drag editable tasks between columns on desktop. Keyboard and touch users can open a task to change status, use the table status selector, or use its complete/reopen button.
-- Open a task to edit, comment, or inspect activity. Updates send the original expected version. A conflict preserves the draft and requires an explicit **Load latest version** action before editing again.
+- Open a task to edit, comment, or inspect activity. Updates send the original expected version. A conflict preserves changed draft fields. **Load latest version** rebases those fields onto the latest server state; saving sends only changed fields with the latest expected version.
 - Owners and admins can add registered users by user ID. Owners can grant/revoke admin; admins can only manage ordinary members. Profile settings can copy your user ID. Names for other members are shown as abbreviated IDs because the API intentionally returns membership IDs rather than other users' profiles.
 - Task and workspace deletion require confirmation in the interface. Only the owner can delete the workspace, with its exact name as confirmation. The API independently enforces all permissions.
 
-Filters and table pagination operate over all project tasks loaded using the backend's paginated endpoints. This suits small and medium project boards; for very large projects, move filtering/pagination to server queries and virtualize cards. There is no claim of real-time synchronization: successful changes invalidate related queries, focus refreshes stale data, and version checks prevent overwriting concurrent edits.
+Task filtering, sorting, and pagination run on the server. The board requests up to 40 tasks per page; the list requests 10. Both views expose page controls. Separate project statistics keep totals accurate across pages. Search requests are debounced by 250 ms. There is no claim of real-time synchronization: successful changes invalidate related queries, focus refreshes stale data, and version checks prevent overwriting concurrent edits.
 
-The local frontend proxy causes login requests to share the proxy's IP for the backend limiter. This is adequate for local use. For deployment, configure the API to trust only the known proxy and forward client addresses there, then use HTTPS and a same-origin reverse proxy. The API docs link currently points to the local API port. Public hosting is not configured by this frontend build.
+The local frontend proxy causes login requests to share the proxy's IP for the backend limiter. This is adequate for local use. For deployment, configure the API to trust only the known proxy and forward client addresses there, then use HTTPS and a same-origin reverse proxy. The API docs link uses the configured API origin. The repository-root Vercel configuration deploys the frontend and API together under one origin.
 
 ## Verification
 
 The production TypeScript/Vite build is checked, and the live browser flow is exercised against FastAPI/PostgreSQL: demo setup, task creation, versioned task update, comment persistence, and stale-write conflict handling. The backend's separate integration suite covers authorization and database rules.
+
+Run `npm test` for frontend regression tests and `npm audit --audit-level=high` for dependency checks. CI runs these before building.

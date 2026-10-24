@@ -1,4 +1,6 @@
-# TaskFlow API
+# TaskFlow
+
+[Live app](https://taskflow-virid-three.vercel.app) · [API docs](https://taskflow-virid-three.vercel.app/docs) · [Deployment verification](docs/VERCEL_DEPLOYMENT_REPORT.md)
 
 A collaborative task management backend built with Python 3.12, FastAPI, PostgreSQL, SQLAlchemy, Redis and Celery. Users organize projects in workspaces, assign tasks, discuss work and inspect an activity history. Every resource is authorized through workspace membership.
 
@@ -68,7 +70,7 @@ Indexes cover project/workspace lookup, project/status, assignee/due date, proje
 
 ## API and permissions
 
-All application routes begin with `/api/v1`. Register using a password of 10–128 characters, then log in with JSON email/password. Paste the returned access token into Swagger's **Authorize** dialog. Emails are normalized to lowercase and passwords use Argon2id. JWT access tokens require `sub`, `iat`, `exp`, issuer and audience and use a fixed HS256 algorithm. Tokens expire after 30 minutes by default; each request also checks the user exists and is active. There are no refresh tokens, password-reset flow or ownership transfers in v1.
+All application routes begin with `/api/v1`. Register using a password of 10â€“128 characters, then log in with JSON email/password. Paste the returned access token into Swagger's **Authorize** dialog. Emails are normalized to lowercase and passwords use Argon2id. JWT access tokens require `sub`, `iat`, `exp`, issuer and audience and use a fixed HS256 algorithm. Tokens expire after 30 minutes by default; each request also checks the user exists and is active. There are no refresh tokens, password-reset flow or ownership transfers in v1.
 
 | Action | Owner | Admin | Member |
 | --- | --- | --- | --- |
@@ -96,6 +98,7 @@ Nonmembers receive 404 for resource access; members without a required role rece
 | PATCH / DELETE | `/workspaces/{id}/members/{user_id}` | Change role or remove member |
 | POST / GET | `/workspaces/{id}/projects` | Create or list projects |
 | GET | `/workspaces/{id}/stats` | Counts by status and overdue count |
+| GET | `/projects/{id}/stats` | Project totals, status counts, overdue and your open assignments |
 | GET | `/workspaces/{id}/activity` | Workspace audit feed including deleted tasks |
 | POST / GET | `/projects/{id}/tasks` | Create or query tasks |
 | GET / PATCH / DELETE | `/tasks/{id}` | Read, versioned update or delete |
@@ -114,7 +117,7 @@ Example PATCH body:
 }
 ```
 
-Omitted fields are unchanged. Explicit `null` clears only `assignee_id` or `due_at`. A successful update increments `version`; fetch again after a 409. At least one changed field is required. Title length is 1–200; descriptions and comments are limited to 10,000 characters. Task deletion cascades to comments and reminders. Activity records have no edit/delete API; task deletion nulls their foreign key while a deletion event retains the task UUID. Workspace deletion cascades its entire history. User deletion is restricted by attribution foreign keys.
+Omitted fields are unchanged. Explicit `null` clears only `assignee_id` or `due_at`. A successful update increments `version`; fetch again after a 409. At least one changed field is required. Title length is 1â€“200; descriptions and comments are limited to 10,000 characters. Task deletion cascades to comments and reminders. Activity records have no edit/delete API; task deletion nulls their foreign key while a deletion event retains the task UUID. Workspace deletion cascades its entire history. User deletion is restricted by attribution foreign keys.
 
 ## Reminders
 
@@ -157,6 +160,6 @@ The GitHub Actions workflow is at `.github/workflows/taskflow-ci.yml`. It runs b
 
 The Docker Compose file is for local development and contains a documented development database password. For deployment, use the same Dockerfile for an API service, worker service and exactly one beat instance, with managed PostgreSQL 16+ and Redis. Supply service credentials through the hosting provider's secret manager. Set `ENVIRONMENT=production` and a generated JWT secret, explicit CORS origins and SMTP settings. Run `alembic upgrade head` once as a release job before starting new app replicas; the image deliberately does not run migrations on each API startup. Configure HTTPS, private database/broker networking, backups and log aggregation. Use `/health` for liveness and `/health/ready` for database/schema readiness. Monitor Redis and Celery separately for reminder delivery. Configure trusted proxy IPs when enabling forwarded headers, or login throttling will see the proxy IP.
 
-This repository provides a verified local stack and deployment artifacts. No cloud resource or public deployment is created automatically. Public deployment and real SMTP delivery require the target provider and credentials. Sessions, email verification, password reset, refresh-token revocation, full-text search and real-time collaboration are future work. JWTs were chosen for a simple independent API; server-side sessions offer easier immediate token revocation. The modular monolith keeps transactions and deployment understandable for this project.
+This repository provides a verified local stack and a deployed Vercel web/API application. The production release uses Vercel Services with same-origin routes and GitHub auto-deployment from main. See the deployment verification report for evidence and operations. Real SMTP reminders require a separately running Redis/Celery stack and configured mail transport. Sessions, email verification, password reset, refresh-token revocation, full-text search and real-time collaboration are future work. JWTs were chosen for a simple independent API; server-side sessions offer easier immediate token revocation. The modular monolith keeps transactions and deployment understandable for this project.
 
 Implementation references: [FastAPI](https://fastapi.tiangolo.com/tutorial/), [SQLAlchemy version counters](https://docs.sqlalchemy.org/en/20/orm/versioning.html), [Celery task delivery and retries](https://docs.celeryq.dev/en/stable/userguide/tasks.html), [Alembic](https://alembic.sqlalchemy.org/en/latest/).
