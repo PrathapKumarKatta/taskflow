@@ -1,0 +1,69 @@
+name: TaskFlow backend
+on:
+  push:
+    paths: ['**']
+  pull_request:
+    paths: ['**']
+permissions:
+  contents: read
+jobs:
+  integration:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: .
+    env:
+      DATABASE_URL: postgresql+asyncpg://taskflow:ci_password@localhost:5432/taskflow_test
+      TEST_DATABASE_URL: postgresql+asyncpg://taskflow:ci_password@localhost:5432/taskflow_test
+      REDIS_URL: redis://localhost:6379/15
+      TEST_REDIS_URL: redis://localhost:6379/15
+      JWT_SECRET: ci-only-secret-with-sufficient-length-1234567890
+      ENVIRONMENT: test
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: taskflow
+          POSTGRES_PASSWORD: ci_password
+          POSTGRES_DB: taskflow_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U taskflow -d taskflow_test"
+          --health-interval 5s --health-timeout 3s --health-retries 20
+      redis:
+        image: redis:7-alpine
+        ports: ['6379:6379']
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-timeout 3s --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: '0.9.5'
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - run: uv sync --frozen --python 3.12
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
+      - run: uv run alembic upgrade head
+      - run: uv run alembic check
+      - run: uv run pytest -q
+      - run: docker build -t taskflow-api:ci .
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci --no-audit --no-fund
+      - run: npm test
+      - run: npm audit --audit-level=high
+      - run: npm run build
+      - run: docker build -t taskflow-web:ci .
