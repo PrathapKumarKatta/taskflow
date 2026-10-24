@@ -22,3 +22,6 @@ celerybeat-schedule*
 /archify/
 .neon
 node_modules/
+
+.vercel
+.env*
